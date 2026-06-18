@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Data — never commit raw data
+data/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
