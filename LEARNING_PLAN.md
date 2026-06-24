@@ -1,8 +1,15 @@
 # Career Re-entry Learning Plan
 ## Applied AI & Optimisation — Energy & Industrial Systems
 
-**Last updated:** 18th June 2026  
-**Status:** Week 1 
+**Last updated:** 24th June 2026  
+**Status:** Week 2
+
+## Next Session
+- In new notebook
+- Build naive baseline forecast: ND_lagged = ND shifted by 336 periods (same time last week)
+- Then: linear regression model using hour, day_of_week, month, is_weekend as features
+- Then: compare baseline vs regression model
+- Forecasting target: day-ahead, 48 half-hourly periods
 
 ---
 
@@ -21,9 +28,16 @@
 ## Completed
 
 - [x] Kaggle Python intro course
+- [x] Kaggle Pandas micro-course
 - [x] Google Prompting Essentials course *(sufficient — no further prompt engineering courses needed)*
-- [x] Toolchain setup
-- [x] Project Structure setup
+- [x] Toolchain setup (uv, VS Code, Jupyter, Git)
+- [x] Project Structure setup (energy-forecast repo)
+In 01_exploration.ipynb
+  - [x] Loaded and indexed NESO historic demand data (2024)
+  - [x] Built datetime index from SETTLEMENT_DATE and SETTLEMENT_PERIOD
+  - [x] Exploratory plots: full year, single week, hourly average, monthly average, day-of-week average
+  - [x] Engineered time features: hour, day_of_week, month, is_weekend
+  - [x] Confirmed seasonal, weekly and daily demand patterns visually
 ---
 
 ## Toolchain Setup (Week 1, do once)
@@ -75,7 +89,6 @@ energy-forecast/
 
 ### Courses
 - **Kaggle Pandas micro-course** — a few hours, directly practical, foundation for everything else
-- **Kaggle Data Visualisation micro-course** — short follow-on, matplotlib/seaborn basics
 
 ### Source control this week
 - Set up repo and project structure as above
