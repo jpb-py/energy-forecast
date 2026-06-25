@@ -1,15 +1,12 @@
 # Career Re-entry Learning Plan
 ## Applied AI & Optimisation — Energy & Industrial Systems
 
-**Last updated:** 24th June 2026  
+**Last updated:** 25th June 2026  
 **Status:** Week 2
 
 ## Next Session
-- In new notebook
-- Build naive baseline forecast: ND_lagged = ND shifted by 336 periods (same time last week)
-- Then: linear regression model using hour, day_of_week, month, is_weekend as features
-- Then: compare baseline vs regression model
-- Forecasting target: day-ahead, 48 half-hourly periods
+- Complete Kaggle Time Series course
+- Produce time series forecast for electrictity demand and compare against naive forecast
 
 ---
 
@@ -38,6 +35,8 @@ In 01_exploration.ipynb
   - [x] Exploratory plots: full year, single week, hourly average, monthly average, day-of-week average
   - [x] Engineered time features: hour, day_of_week, month, is_weekend
   - [x] Confirmed seasonal, weekly and daily demand patterns visually
+In 02_forecasting.ipynb
+  - [x] Produced naive forecast and generated error metrices
 ---
 
 ## Toolchain Setup (Week 1, do once)
