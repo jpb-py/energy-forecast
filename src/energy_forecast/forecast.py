@@ -1,0 +1,33 @@
+# Create forecast with time period dummies and lags.  Include prediction interval at 95%
+# Split date is first date in test data
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.DataFrame:
+    # Split data into training and test data
+    train_df = df[df.index < split_date]
+    test_df = df[df.index >= split_date]
+
+    # Extract X that will use for regression
+    feature_cols = ['y_lag_1','y_lag_48','y_lag_336'] + [col for col in df.columns if col.startswith('period')]
+    
+    X_train = train_df[feature_cols].copy()
+    X_test = test_df[feature_cols].copy()
+
+    # Do regression with sklearn
+    model = LinearRegression(fit_intercept=True)
+    model.fit(X_train, train_df['ND'])
+
+    y_pred = pd.Series(model.predict(X_train), index = X_train.index)
+    y_resid = train_df['ND'] - y_pred
+    std_dev = np.std(y_resid)
+
+    y_fore = pd.Series(model.predict(X_test), index = X_test.index)
+    y_lower = y_fore - 1.96*std_dev
+    y_upper = y_fore + 1.96*std_dev
+
+    forecast = pd.concat([y_fore, y_lower, y_upper], axis =1, keys = ['Forecast', 'Lower Forecast', 'Upper Forecast'])
+
+    return forecast
+    
