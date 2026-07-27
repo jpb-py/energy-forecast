@@ -26,6 +26,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/energy_forecast"]
 
+[tool.ruff]
+extend-exclude = ["*.ipynb"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
