@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
-from energy_forecast.dispatch import solve_dispatch
+
 from energy_forecast.config import BatteryParams
+from energy_forecast.dispatch import solve_dispatch
 
 
 def test_solve_dispatch_soc_feasibility():
@@ -14,7 +15,7 @@ def test_solve_dispatch_soc_feasibility():
     s_start, s_end = params.s_start, params.s_end
 
     periods = np.arange(48)
-    prices = pd.Series((20 + 30 * np.exp(-((periods - 14) ** 2) / 10) + 80 * np.exp(-((periods - 34) ** 2) / 10)))
+    prices = pd.Series(20 + 30 * np.exp(-((periods - 14) ** 2) / 10) + 80 * np.exp(-((periods - 34) ** 2) / 10))
     demand = prices / k
 
     result = solve_dispatch(demand, params)

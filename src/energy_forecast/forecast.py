@@ -1,8 +1,9 @@
 # Create forecast with time period dummies and lags.  Include prediction interval at 95%
 # Split date is first date in test data
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LinearRegression
+
 
 def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.DataFrame:
     # Split data into training and test data

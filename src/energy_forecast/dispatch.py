@@ -1,6 +1,8 @@
-import pandas as pd
 import cvxpy as cp
+import pandas as pd
+
 from energy_forecast.config import BatteryParams
+
 
 def solve_dispatch(demand, params: BatteryParams) -> pd.DataFrame:
     # Function takes in demand and batter parameters and outputs charge/discharge/SoC/cost per period

@@ -1,6 +1,7 @@
 # 47 Time dummies and therefore constant must be added later
 import pandas as pd
 
+
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Add indexes for hour, day of week, month, and boolean for weekend day
