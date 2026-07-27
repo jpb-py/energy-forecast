@@ -26,7 +26,7 @@ def solve_dispatch(demand, params: BatteryParams) -> pd.DataFrame:
     constraints = [0 <= c, c <= c_max,
                    0 <= d, d <= d_max,
                    0 <= s, s <= s_max,
-                   s[0] == s_start + t*(eta*(c[0] - d[0])),
+                   s[0] == s_start + t*(eta*c[0] - d[0]),
                    s[n-1] == s_end]
     
     # Add time linking constraints
