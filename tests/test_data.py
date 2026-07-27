@@ -1,5 +1,5 @@
-from pathlib import Path
 import pandas as pd
+
 from energy_forecast.data import load_demand_data
 
 
@@ -21,5 +21,5 @@ def test_load_demand_data_ordinary_day_shape(tmp_path):
     assert len(df) == 48
     assert df.index.is_unique
     assert df.index.is_monotonic_increasing
-    assert df.index[0] == pd.Timestamp("2024-06-15 00:00")
-    assert df.index[-1] == pd.Timestamp("2024-06-15 23:30")
+    assert df.index[0] == pd.Timestamp("2024-06-15 00:00", tz="Europe/London")
+    assert df.index[-1] == pd.Timestamp("2024-06-15 23:30", tz="Europe/London")
