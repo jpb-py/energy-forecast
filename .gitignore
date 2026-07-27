@@ -21,3 +21,6 @@ data/
 # Test and lint caches
 .pytest_cache/
 .ruff_cache/
+
+# Debugging
+scratch.py
