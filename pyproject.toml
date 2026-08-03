@@ -1,7 +1,7 @@
 [project]
 name = "energy-forecast"
 version = "0.1.0"
-description = "Add your description here"
+description = "Battery dispatch optimisation against a UK electricity demand forecast"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
