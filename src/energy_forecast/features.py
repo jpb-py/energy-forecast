@@ -2,7 +2,7 @@
 import pandas as pd
 
 
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
+def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Add indexes for hour, day of week, month, and boolean for weekend day
     # Convert index to local time for calculations and then convert back
@@ -12,9 +12,14 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df['day_of_week'] = local_index.day_of_week
     df['month'] = local_index.month
     df['is_weekend'] = df['day_of_week'] >= 5
-    
 
-    
+    return df
+
+
+def build_features(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = add_time_features(df)
+
     # Add lags
     y = df['ND']
     df['y_lag_1'] = y.shift(1)
