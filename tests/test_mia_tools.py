@@ -97,10 +97,31 @@ def test_run_dispatch_scenario_consumes_solve_budget(session):
     )
 
     json.dumps(dispatch_response)
-    assert "total_cost" in dispatch_response
+    assert "total_profit" in dispatch_response
     assert "schedule_id" in dispatch_response
     # test window is 2024-01-11 through 2024-01-14 inclusive: 4 calendar days
     assert session.dispatch_solves_used == 4
+
+
+def test_run_dispatch_scenario_reports_realized_profit_separately(session):
+    # seasonal_naive's forecast doesn't exactly equal Actual for this fixture (the
+    # synthetic demand has a small linear trend the 7-day lag doesn't capture), so
+    # realized_total_profit should be computed independently, not just copied.
+    backtest_response = _handle_run_backtest(
+        session, {"forecast_fn_id": "seasonal_naive", "split_date": "2024-01-11"}
+    )
+
+    dispatch_response = _handle_run_dispatch_scenario(
+        session, {"predictions_id": backtest_response["predictions_id"]}
+    )
+
+    json.dumps(dispatch_response)
+    assert "realized_total_profit" in dispatch_response
+    assert isinstance(dispatch_response["realized_total_profit"], float)
+    assert dispatch_response["realized_total_profit"] != dispatch_response["total_profit"]
+
+    schedule = session.store.get(dispatch_response["schedule_id"])
+    assert "realized profit per period" in schedule.columns
 
 
 def test_run_dispatch_scenario_rejects_when_budget_exceeded(session):

@@ -1,6 +1,7 @@
 import pandas as pd
 
 from energy_forecast.config import BatteryParams
+from energy_forecast.dispatch import realized_profit as _realized_profit
 from energy_forecast.dispatch import run_multi_day_dispatch
 from energy_forecast.evaluation import (
     calculate_error_slices as _calculate_error_slices,
@@ -154,10 +155,18 @@ def _handle_run_dispatch_scenario(session: Session, args: dict) -> dict:
     schedule = run_multi_day_dispatch(demand, DISPATCH_PARAMS)
     session.dispatch_solves_used += n_days
 
-    total_cost = float(schedule["cost per period"].sum())
+    total_profit = float(schedule["profit per period"].sum())
+
+    schedule["realized profit per period"] = _realized_profit(schedule, predictions["Actual"], DISPATCH_PARAMS)
+    realized_total_profit = float(schedule["realized profit per period"].sum())
+
     schedule_id = session.store.put("sched", schedule)
 
-    response = {"total_cost": total_cost, "schedule_id": schedule_id}
+    response = {
+        "total_profit": total_profit,
+        "realized_total_profit": realized_total_profit,
+        "schedule_id": schedule_id,
+    }
 
     if _wants_preview(args, "return_schedule"):
         response["preview"] = _preview_rows(

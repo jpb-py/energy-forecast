@@ -3,7 +3,11 @@ import pandas as pd
 import pytest
 
 from energy_forecast.config import BatteryParams
-from energy_forecast.dispatch import run_multi_day_dispatch, solve_dispatch
+from energy_forecast.dispatch import (
+    realized_profit,
+    run_multi_day_dispatch,
+    solve_dispatch,
+)
 
 
 def _synthetic_day_demand(params: BatteryParams) -> pd.Series:
@@ -84,7 +88,7 @@ def test_run_multi_day_dispatch_two_days_are_solved_independently():
     pd.testing.assert_frame_equal(day_one, day_two, atol=1e-4)
 
 
-def test_run_multi_day_dispatch_total_cost_is_sum_of_daily_costs():
+def test_run_multi_day_dispatch_total_profit_is_sum_of_daily_profits():
     params = BatteryParams()
     one_day = _synthetic_day_demand(params)
     demand = pd.concat([one_day, one_day, one_day], ignore_index=True)
@@ -92,8 +96,8 @@ def test_run_multi_day_dispatch_total_cost_is_sum_of_daily_costs():
     combined = run_multi_day_dispatch(demand, params)
     single_day = solve_dispatch(one_day, params)
 
-    assert combined["cost per period"].sum() == pytest.approx(
-        3 * single_day["cost per period"].sum(), abs=1e-4
+    assert combined["profit per period"].sum() == pytest.approx(
+        3 * single_day["profit per period"].sum(), abs=1e-4
     )
 
 
@@ -103,3 +107,31 @@ def test_run_multi_day_dispatch_rejects_non_multiple_of_48():
 
     with pytest.raises(AssertionError):
         run_multi_day_dispatch(demand, params)
+
+
+def test_realized_profit_matches_schedules_own_profit_when_demand_is_unchanged():
+    # Regression case: re-pricing a schedule against the exact demand it was
+    # optimised against must reduce to its own reported 'profit per period'.
+    params = BatteryParams()
+    demand = _synthetic_day_demand(params)
+    schedule = solve_dispatch(demand, params)
+
+    realized = realized_profit(schedule, demand, params)
+
+    np.testing.assert_allclose(realized.to_numpy(), schedule["profit per period"].to_numpy(), atol=1e-8)
+
+
+def test_realized_profit_reprices_against_different_actual_demand():
+    params = BatteryParams()
+    demand = _synthetic_day_demand(params)
+    schedule = solve_dispatch(demand, params)
+
+    actual_demand = pd.Series(500.0, index=demand.index)  # flat, unrelated to the forecast used
+
+    realized = realized_profit(schedule, actual_demand, params)
+
+    expected = params.t * (actual_demand * params.k) * (schedule["Discharge rate"] - schedule["Charge rate"])
+    np.testing.assert_allclose(realized.to_numpy(), expected.to_numpy(), atol=1e-8)
+    # a flat actual price removes the arbitrage spread the schedule was built around,
+    # so realized profit should come in below what the optimiser believed it would earn
+    assert realized.sum() < schedule["profit per period"].sum()

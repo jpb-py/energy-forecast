@@ -118,7 +118,12 @@ TOOL_SCHEMAS = [
             "('Forecast' column), one calendar day at a time. The battery has no cross-day "
             "foresight: it resets to its start-of-day state of charge every day, and battery "
             "parameters are fixed. Each calendar day covered consumes one unit of this "
-            "investigation's dispatch solve budget."
+            "investigation's dispatch solve budget. Returns two figures: total_profit is what "
+            "the optimiser expected to earn based on the forecast it was given (price is "
+            "assumed proportional to the forecast); realized_total_profit is what that same, "
+            "already-decided schedule would actually have earned priced against real demand "
+            "('Actual'). The gap between them measures how much forecast error cost in dispatch "
+            "terms -- do not treat total_profit alone as a real economic outcome."
         ),
         "input_schema": {
             "type": "object",
