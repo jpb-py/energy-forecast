@@ -136,3 +136,52 @@ def test_run_query_enforces_total_call_budget(session):
     tool_results = calls[1]["messages"][-1]["content"]
     assert tool_results[0].get("is_error") is not True
     assert tool_results[1]["is_error"] is True
+
+
+def test_system_prompt_instructs_acting_in_the_same_turn(session):
+    # Regression test for a real failure mode we saw live: the model narrating an
+    # intended tool call ("I'll start by...") and stopping with stop_reason=end_turn
+    # instead of actually making it. There's no code-level fix possible for this --
+    # run_query can't distinguish a genuine final answer from an unexecuted narration
+    # (see test_run_query_returns_narrated_but_unexecuted_plan_verbatim below) -- so
+    # the fix lives entirely in the system prompt. This just guards against that
+    # instruction being silently removed or reworded away in a future edit.
+    client, calls = _scripted_client([_response([_text_block("Final answer.")], "end_turn")])
+
+    run_query(client, session, "What's the MAE?")
+
+    system_prompt = calls[0]["system"]
+    assert "call it in the same turn rather than describing your plan and stopping" in system_prompt
+
+
+def test_system_prompt_instructs_flagging_question_substitution(session):
+    # Regression test for a second failure mode: the model silently answering a
+    # different question than the one asked, without saying it did so. Same caveat
+    # as above -- this is a system-prompt guard, not something the loop enforces.
+    # Note the coverage gap: this only confirms the instruction text is present in
+    # what's sent to the API. Actually verifying the model *disclosed* a
+    # substitution would mean judging free-text content (did it explain what it
+    # changed and why?), which a mocked, deterministic unit test can't do -- that
+    # would need either a live API call or a human/LLM judge reviewing a real
+    # transcript. Don't read this test as coverage of the actual behaviour.
+    client, calls = _scripted_client([_response([_text_block("Final answer.")], "end_turn")])
+
+    run_query(client, session, "What's the MAE?")
+
+    system_prompt = calls[0]["system"]
+    assert "Never substitute a different question without saying so" in system_prompt
+
+
+def test_run_query_returns_narrated_but_unexecuted_plan_verbatim(session):
+    # Documents current code behaviour if the system-prompt guard above ever fails
+    # to prevent failure mode (1): the loop has no way to tell a genuine final
+    # answer apart from a narrated-but-not-executed plan, so it just returns
+    # whatever text the model produced -- no retry, no error, one API call. This is
+    # the baseline to update if code-level detection/retry is ever added here.
+    narration = "I'll start by running a backtest on linear_lagged for November."
+    client, calls = _scripted_client([_response([_text_block(narration)], "end_turn")])
+
+    answer = run_query(client, session, "How did the model do in November?")
+
+    assert answer == narration
+    assert len(calls) == 1  # no tool call attempted, no retry
