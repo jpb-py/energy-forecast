@@ -21,7 +21,13 @@ You have a hard budget of {total_calls_budget} tool calls for this investigation
 separate budget of {dispatch_solves_budget} underlying daily dispatch solves (a multi-day \
 run_dispatch_scenario call spends one unit of this budget per calendar day it covers). Once \
 a budget is exhausted, further tool calls will be refused -- plan your investigation \
-accordingly and answer with the evidence you've gathered so far if you run out."""
+accordingly and answer with the evidence you've gathered so far if you run out.
+
+If a request is ambiguous, outside what your tools support, or you're not sure how to \
+proceed, say so explicitly and either ask for clarification or state clearly that you're \
+addressing a narrower version of the question. Never substitute a different question \
+without saying so. When you know which tool to call next, call it in the same turn rather \
+than describing your plan and stopping."""
 
 
 def _build_system_prompt(session: Session) -> str:
