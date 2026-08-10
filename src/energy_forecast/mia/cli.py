@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -12,6 +13,12 @@ DEFAULT_DATA_PATH = Path("data/demanddata_2024.csv")
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=os.environ.get("MIA_LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise SystemExit("ANTHROPIC_API_KEY environment variable is not set.")

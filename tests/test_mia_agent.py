@@ -18,7 +18,8 @@ def _tool_use_block(block_id, name, input_):
 
 
 def _response(content, stop_reason):
-    return SimpleNamespace(content=content, stop_reason=stop_reason)
+    usage = SimpleNamespace(input_tokens=0, output_tokens=0)
+    return SimpleNamespace(content=content, stop_reason=stop_reason, usage=usage)
 
 
 def _scripted_client(responses):

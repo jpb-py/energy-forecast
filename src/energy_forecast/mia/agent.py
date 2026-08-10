@@ -1,4 +1,5 @@
 import json
+import logging
 
 import anthropic
 
@@ -6,8 +7,10 @@ from energy_forecast.mia.registry import FORECAST_FUNCTIONS, Session
 from energy_forecast.mia.schema import TOOL_SCHEMAS
 from energy_forecast.mia.tools import TOOL_HANDLERS
 
+logger = logging.getLogger(__name__)
+
 MODEL = "claude-sonnet-5"
-MAX_RESPONSE_TOKENS = 2048
+MAX_RESPONSE_TOKENS = 8192
 
 SYSTEM_PROMPT_TEMPLATE = """You are the Model Investigation Assistant (MIA) for a UK \
 electricity demand forecasting and battery dispatch project. Answer diagnostic questions \
@@ -45,16 +48,25 @@ def _tool_result(tool_use_id: str, content: str, is_error: bool = False) -> dict
     return block
 
 
+def _truncate(text: str, limit: int = 500) -> str:
+    return text if len(text) <= limit else f"{text[:limit]}... ({len(text)} chars total)"
+
+
 def _run_tool(session: Session, tool_use) -> dict:
     handler = TOOL_HANDLERS.get(tool_use.name)
     if handler is None:
+        logger.warning("unknown tool requested: %s", tool_use.name)
         return _tool_result(tool_use.id, f"Unknown tool '{tool_use.name}'.", is_error=True)
 
+    logger.info("tool args: %s(%s)", tool_use.name, json.dumps(tool_use.input, default=str))
     try:
         result = handler(session, tool_use.input)
-        return _tool_result(tool_use.id, json.dumps(result, default=str))
+        result_json = json.dumps(result, default=str)
+        logger.info("tool result: %s -> %s", tool_use.name, _truncate(result_json))
+        return _tool_result(tool_use.id, result_json)
     except Exception as exc:  # noqa: BLE001 -- handler boundary: any domain error must
         # become a tool_result the model can see and react to, never a crashed loop.
+        logger.warning("tool error: %s -> %s: %s", tool_use.name, type(exc).__name__, exc)
         return _tool_result(tool_use.id, f"{type(exc).__name__}: {exc}", is_error=True)
 
 
@@ -68,8 +80,10 @@ def run_query(client: anthropic.Anthropic, session: Session, question: str) -> s
     """
     messages = [{"role": "user", "content": question}]
     system_prompt = _build_system_prompt(session)
+    round_number = 0
 
     while True:
+        round_number += 1
         budget_left = session.total_calls_budget - session.total_calls_used
         response = client.messages.create(
             model=MODEL,
@@ -80,9 +94,24 @@ def run_query(client: anthropic.Anthropic, session: Session, question: str) -> s
         )
 
         messages.append({"role": "assistant", "content": response.content})
+        usage = response.usage
+        logger.info(
+            "round %d: stop_reason=%s input_tokens=%s output_tokens=%s",
+            round_number, response.stop_reason, usage.input_tokens, usage.output_tokens,
+        )
+        for block in response.content:
+            if block.type == "text" and block.text.strip():
+                logger.info("assistant text: %s", _truncate(block.text))
 
         if response.stop_reason != "tool_use":
-            return "".join(block.text for block in response.content if block.type == "text")
+            text = "".join(block.text for block in response.content if block.type == "text")
+            if not text:
+                text = (
+                    f"MIA stopped with stop_reason='{response.stop_reason}' and produced no "
+                    "answer text -- most likely it ran out of response tokens mid-answer. "
+                    "Try a narrower question, or raise MAX_RESPONSE_TOKENS."
+                )
+            return text
 
         tool_results = []
         for block in response.content:
@@ -90,6 +119,7 @@ def run_query(client: anthropic.Anthropic, session: Session, question: str) -> s
                 continue
 
             if session.total_calls_used >= session.total_calls_budget:
+                logger.warning("tool call refused, budget exhausted: %s", block.name)
                 tool_results.append(
                     _tool_result(
                         block.id,
@@ -101,7 +131,14 @@ def run_query(client: anthropic.Anthropic, session: Session, question: str) -> s
                 continue
 
             session.total_calls_used += 1
-            print(f"[tool call {session.total_calls_used}/{session.total_calls_budget}] {block.name}")
+            logger.info(
+                "tool call %d/%d: %s (dispatch solves %d/%d)",
+                session.total_calls_used,
+                session.total_calls_budget,
+                block.name,
+                session.dispatch_solves_used,
+                session.dispatch_solves_budget,
+            )
             tool_results.append(_run_tool(session, block))
 
         messages.append({"role": "user", "content": tool_results})
