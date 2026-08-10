@@ -37,21 +37,33 @@ def _wants_preview(args: dict, flag_name: str) -> bool:
     return bool(args.get(flag_name, False)) and has_window
 
 
-def _parse_split_date(value: str) -> pd.Timestamp:
+def _parse_date(value: str) -> pd.Timestamp:
     # raw_data (and everything derived from it) is UTC-indexed; a bare ISO date
     # from tool JSON is tz-naive, so it must be localized before it can be
     # compared against that index.
-    split_date = pd.Timestamp(value)
-    if split_date.tzinfo is None:
-        split_date = split_date.tz_localize("UTC")
-    return split_date
+    date = pd.Timestamp(value)
+    if date.tzinfo is None:
+        date = date.tz_localize("UTC")
+    return date
+
+
+def _parse_end_date(value: str) -> pd.Timestamp:
+    # A bare end_date (e.g. "2024-01-12") parses to that day's midnight, which
+    # would exclude almost the entire day from a "<=" comparison. Extend it to
+    # the last instant of that day so end_date reads as "through end_date",
+    # mirroring how split_date already reads as "from the start of split_date".
+    end_date = _parse_date(value)
+    return end_date + pd.Timedelta(days=1) - pd.Timedelta(microseconds=1)
 
 
 def _handle_run_backtest(session: Session, args: dict) -> dict:
     forecast_fn = resolve_forecast_fn(args["forecast_fn_id"])
-    split_date = _parse_split_date(args["split_date"])
+    split_date = _parse_date(args["split_date"])
+    end_date = _parse_end_date(args["end_date"]) if args.get("end_date") else None
 
-    result = _run_backtest(forecast_fn, split_date, session.raw_data, return_predictions=True)
+    result = _run_backtest(
+        forecast_fn, split_date, session.raw_data, return_predictions=True, end_date=end_date
+    )
     predictions_id = session.store.put("pred", result["predictions"])
 
     response = {
@@ -60,6 +72,8 @@ def _handle_run_backtest(session: Session, args: dict) -> dict:
         "rmse": result["rmse"],
         "predictions_id": predictions_id,
     }
+    if end_date is not None:
+        response["end_date"] = args["end_date"]
 
     if _wants_preview(args, "return_predictions"):
         response["preview"] = _preview_rows(
@@ -72,11 +86,17 @@ def _handle_run_backtest(session: Session, args: dict) -> dict:
 def _handle_compare_model_versions(session: Session, args: dict) -> dict:
     forecast_fn_a = resolve_forecast_fn(args["forecast_fn_id_a"])
     forecast_fn_b = resolve_forecast_fn(args["forecast_fn_id_b"])
-    split_date = _parse_split_date(args["split_date"])
+    split_date = _parse_date(args["split_date"])
+    end_date = _parse_end_date(args["end_date"]) if args.get("end_date") else None
     include_preview = _wants_preview(args, "return_predictions")
 
     result = _compare_model_versions(
-        forecast_fn_a, forecast_fn_b, split_date, session.raw_data, return_predictions=True
+        forecast_fn_a,
+        forecast_fn_b,
+        split_date,
+        session.raw_data,
+        return_predictions=True,
+        end_date=end_date,
     )
 
     def _side(key: str) -> dict:
@@ -93,13 +113,17 @@ def _handle_compare_model_versions(session: Session, args: dict) -> dict:
             )
         return side
 
-    return {
+    response = {
         "split_date": str(split_date),
         "a": _side("a"),
         "b": _side("b"),
         "rmse_change": result["rmse_change"],
         "mae_change": result["mae_change"],
     }
+    if end_date is not None:
+        response["end_date"] = args["end_date"]
+
+    return response
 
 
 def _handle_calculate_error_slices(session: Session, args: dict) -> dict:

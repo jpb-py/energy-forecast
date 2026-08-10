@@ -9,8 +9,11 @@ def run_backtest(
     split_date: pd.Timestamp,
     raw_data: pd.DataFrame,
     return_predictions: bool = False,
+    end_date: pd.Timestamp | None = None,
 ) -> dict:
     features_df = build_features(raw_data)
+    if end_date is not None:
+        features_df = features_df[features_df.index <= end_date]
 
     predictions = forecast_fn(features_df, split_date).copy()
     predictions['Actual'] = features_df.loc[predictions.index, 'ND']
@@ -32,9 +35,10 @@ def compare_model_versions(
     split_date: pd.Timestamp,
     raw_data: pd.DataFrame,
     return_predictions: bool = False,
+    end_date: pd.Timestamp | None = None,
 ) -> dict:
-    result_a = run_backtest(forecast_fn_a, split_date, raw_data, return_predictions)
-    result_b = run_backtest(forecast_fn_b, split_date, raw_data, return_predictions)
+    result_a = run_backtest(forecast_fn_a, split_date, raw_data, return_predictions, end_date)
+    result_b = run_backtest(forecast_fn_b, split_date, raw_data, return_predictions, end_date)
 
     return {
         'split_date': split_date,

@@ -7,8 +7,8 @@ TOOL_SCHEMAS = [
         "name": "run_backtest",
         "description": (
             "Backtest a registered forecast function against actual demand on and after "
-            "split_date. Returns MAE/RMSE plus a predictions_id you can pass to "
-            "calculate_error_slices or run_dispatch_scenario."
+            "split_date, optionally bounded by end_date. Returns MAE/RMSE plus a "
+            "predictions_id you can pass to calculate_error_slices or run_dispatch_scenario."
         ),
         "input_schema": {
             "type": "object",
@@ -20,6 +20,13 @@ TOOL_SCHEMAS = [
                 "split_date": {
                     "type": "string",
                     "description": "ISO date (e.g. '2024-11-01'). The test period starts here.",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": (
+                        "Optional ISO date; the test period runs through the end of this day "
+                        "(inclusive). If omitted, the backtest runs to the end of the dataset."
+                    ),
                 },
                 "return_predictions": {
                     "type": "boolean",
@@ -61,6 +68,14 @@ TOOL_SCHEMAS = [
                 "split_date": {
                     "type": "string",
                     "description": "ISO date. The test period starts here for both models.",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": (
+                        "Optional ISO date; the test period runs through the end of this day "
+                        "(inclusive), applied to both models. If omitted, the backtest runs "
+                        "to the end of the dataset."
+                    ),
                 },
                 "return_predictions": {
                     "type": "boolean",

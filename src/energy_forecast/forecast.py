@@ -12,7 +12,18 @@ def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.Dat
 
     # Extract X that will use for regression
     feature_cols = ['y_lag_1','y_lag_48','y_lag_336'] + [col for col in df.columns if col.startswith('period')]
-    
+
+    # LinearRegression needs strictly more training rows than columns to fit at all; with the
+    # lag features' own warmup already consuming the first 336 rows of df, an early split_date
+    # can leave too few (or zero) training rows. Catch that here rather than deep inside sklearn.
+    if len(train_df) <= len(feature_cols):
+        raise ValueError(
+            f"Not enough training rows before split_date={split_date} to fit linear_lagged: "
+            f"{len(train_df)} available but {len(feature_cols)} feature columns (lags + "
+            "settlement-period dummies) require more rows than that to fit. Choose a later "
+            "split_date or provide more history."
+        )
+
     X_train = train_df[feature_cols].copy()
     X_test = test_df[feature_cols].copy()
 

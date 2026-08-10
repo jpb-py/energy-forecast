@@ -57,6 +57,30 @@ def test_compare_model_versions_deltas(synthetic_raw_demand):
     assert result["rmse_change"] == pytest.approx(5.0, abs=1e-9)
 
 
+def test_run_backtest_end_date_bounds_the_window(synthetic_raw_demand):
+    raw = synthetic_raw_demand(14)
+    end_date = pd.Timestamp("2024-01-12 23:30", tz="UTC")  # last period of the 2nd test day
+
+    result = run_backtest(_perfect_forecast, SPLIT_DATE, raw, return_predictions=True, end_date=end_date)
+
+    # without end_date the window runs 2024-01-11 through 2024-01-14 (4 days = 192 rows)
+    assert len(result["predictions"]) == 96
+    assert result["predictions"].index.min() >= SPLIT_DATE
+    assert result["predictions"].index.max() <= end_date
+
+
+def test_compare_model_versions_end_date_threads_through_both_sides(synthetic_raw_demand):
+    raw = synthetic_raw_demand(14)
+    end_date = pd.Timestamp("2024-01-12 23:30", tz="UTC")
+
+    result = compare_model_versions(
+        _perfect_forecast, _offset_forecast, SPLIT_DATE, raw, return_predictions=True, end_date=end_date
+    )
+
+    assert len(result["a"]["predictions"]) == 96
+    assert len(result["b"]["predictions"]) == 96
+
+
 def test_calculate_error_slices_bucket_stats():
     index = pd.date_range("2024-01-01", periods=4, freq="12h", tz="UTC")
     predictions = pd.DataFrame(

@@ -1,5 +1,6 @@
 import json
 
+import pandas as pd
 import pytest
 
 from energy_forecast.mia.registry import Session
@@ -57,6 +58,17 @@ def test_run_backtest_preview_with_window_is_included_and_bounded(session):
     assert "preview" in response
     assert 0 < len(response["preview"]) <= MAX_PREVIEW_ROWS
     json.dumps(response)
+
+
+def test_run_backtest_end_date_bounds_window_inclusive_of_whole_day(session):
+    args = {"forecast_fn_id": "seasonal_naive", "split_date": "2024-01-11", "end_date": "2024-01-12"}
+
+    response = _handle_run_backtest(session, args)
+
+    assert response["end_date"] == "2024-01-12"
+    predictions = session.store.get(response["predictions_id"])
+    assert len(predictions) == 96  # 2024-01-11 and 2024-01-12, both full days
+    assert predictions.index.max() == pd.Timestamp("2024-01-12 23:30", tz="UTC")
 
 
 def test_calculate_error_slices_unknown_predictions_id_raises(session):
