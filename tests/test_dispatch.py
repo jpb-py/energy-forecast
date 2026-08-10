@@ -3,7 +3,13 @@ import pandas as pd
 import pytest
 
 from energy_forecast.config import BatteryParams
-from energy_forecast.dispatch import solve_dispatch
+from energy_forecast.dispatch import run_multi_day_dispatch, solve_dispatch
+
+
+def _synthetic_day_demand(params: BatteryParams) -> pd.Series:
+    periods = np.arange(48)
+    prices = pd.Series(20 + 30 * np.exp(-((periods - 14) ** 2) / 10) + 80 * np.exp(-((periods - 34) ** 2) / 10))
+    return prices / params.k
 
 
 def test_solve_dispatch_soc_feasibility():
@@ -49,3 +55,51 @@ def test_solve_dispatch_soc_feasibility():
 
     d_clipped = np.clip(d, 0, d_max)
     np.testing.assert_allclose(d, d_clipped, atol = 1e-4, err_msg = "Discharge rate out of bounds")
+
+
+def test_run_multi_day_dispatch_single_day_matches_solve_dispatch():
+    """Regression check for the dispatch relaxation: solve_dispatch itself is
+    unchanged, and run_multi_day_dispatch must reduce to it exactly for n=48."""
+    params = BatteryParams()
+    demand = _synthetic_day_demand(params)
+
+    direct = solve_dispatch(demand, params)
+    via_wrapper = run_multi_day_dispatch(demand, params)
+
+    pd.testing.assert_frame_equal(direct, via_wrapper)
+
+
+def test_run_multi_day_dispatch_two_days_are_solved_independently():
+    # s_start != s_end so a continuation bug (carrying SoC across midnight)
+    # would be visible as a mismatch between day 1 and day 2's solutions.
+    params = BatteryParams(s_start=0.3, s_end=0.7)
+    one_day = _synthetic_day_demand(params)
+    demand = pd.concat([one_day, one_day], ignore_index=True)
+
+    result = run_multi_day_dispatch(demand, params)
+
+    assert len(result) == 96
+    day_one = result.iloc[:48].reset_index(drop=True)
+    day_two = result.iloc[48:].reset_index(drop=True)
+    pd.testing.assert_frame_equal(day_one, day_two, atol=1e-4)
+
+
+def test_run_multi_day_dispatch_total_cost_is_sum_of_daily_costs():
+    params = BatteryParams()
+    one_day = _synthetic_day_demand(params)
+    demand = pd.concat([one_day, one_day, one_day], ignore_index=True)
+
+    combined = run_multi_day_dispatch(demand, params)
+    single_day = solve_dispatch(one_day, params)
+
+    assert combined["cost per period"].sum() == pytest.approx(
+        3 * single_day["cost per period"].sum(), abs=1e-4
+    )
+
+
+def test_run_multi_day_dispatch_rejects_non_multiple_of_48():
+    params = BatteryParams()
+    demand = pd.Series(np.arange(50, dtype=float))
+
+    with pytest.raises(AssertionError):
+        run_multi_day_dispatch(demand, params)

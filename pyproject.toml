@@ -5,6 +5,7 @@ description = "Battery dispatch optimisation against a UK electricity demand for
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "anthropic>=0.69.0",
     "cvxpy>=1.9.2",
     "ipykernel>=7.3.0",
     "jupyter>=1.1.1",

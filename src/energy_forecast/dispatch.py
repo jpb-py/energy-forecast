@@ -53,3 +53,17 @@ def solve_dispatch(demand, params: BatteryParams) -> pd.DataFrame:
 
 
     return df_output
+
+
+def run_multi_day_dispatch(demand: pd.Series, params: BatteryParams) -> pd.DataFrame:
+    # Solves each calendar day independently (battery resets to s_start/s_end every
+    # day) rather than optimising across days, so no new constraints are needed here.
+    n = len(demand)
+    assert n % 48 == 0, "demand length must be a whole number of days (multiples of 48 half-hourly periods)"
+
+    daily_results = [
+        solve_dispatch(demand.iloc[i:i + 48], params)
+        for i in range(0, n, 48)
+    ]
+
+    return pd.concat(daily_results)

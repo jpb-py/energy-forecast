@@ -31,4 +31,20 @@ def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.Dat
     forecast = pd.concat([y_fore, y_lower, y_upper], axis =1, keys = ['Forecast', 'Lower Forecast', 'Upper Forecast'])
 
     return forecast
-    
+
+
+def naive_seasonal_forecast(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.DataFrame:
+    # Seasonal-naive baseline: forecast = demand at the same settlement period one week ago
+    train_df = df[df.index < split_date]
+    test_df = df[df.index >= split_date]
+
+    y_resid = train_df['ND'] - train_df['y_lag_336']
+    std_dev = np.std(y_resid)
+
+    y_fore = test_df['y_lag_336']
+    y_lower = y_fore - 1.96*std_dev
+    y_upper = y_fore + 1.96*std_dev
+
+    forecast = pd.concat([y_fore, y_lower, y_upper], axis =1, keys = ['Forecast', 'Lower Forecast', 'Upper Forecast'])
+
+    return forecast
