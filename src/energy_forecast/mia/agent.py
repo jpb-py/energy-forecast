@@ -101,6 +101,7 @@ def run_query(client: anthropic.Anthropic, session: Session, question: str) -> s
                 continue
 
             session.total_calls_used += 1
+            print(f"[tool call {session.total_calls_used}/{session.total_calls_budget}] {block.name}")
             tool_results.append(_run_tool(session, block))
 
         messages.append({"role": "user", "content": tool_results})
