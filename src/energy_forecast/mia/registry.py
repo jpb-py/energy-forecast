@@ -3,11 +3,16 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from energy_forecast.forecast import forecast_with_interval, naive_seasonal_forecast
+from energy_forecast.forecast import (
+    bayesian_hierarchical_forecast,
+    forecast_with_interval,
+    naive_seasonal_forecast,
+)
 
 FORECAST_FUNCTIONS = {
     "linear_lagged": forecast_with_interval,
     "seasonal_naive": naive_seasonal_forecast,
+    "bayesian_hierarchical": bayesian_hierarchical_forecast,
 }
 
 
