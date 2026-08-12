@@ -31,14 +31,17 @@ uv run pytest
 ```
 
 Notebooks in `notebooks/` (`01_exploration.ipynb`, `02_forecasting.ipynb`,
-`03_optimisation.ipynb`, `04_bayesian_intervals.ipynb`) walk through the
-exploratory analysis and model development behind each module, and import
-directly from `src/` rather than duplicating logic inline.
+`03_optimisation.ipynb`, `04_bayesian_intervals.ipynb`,
+`05_xgboost_comparison.ipynb`) walk through the exploratory analysis and
+model development behind each module, and import directly from `src/`
+rather than duplicating logic inline.
 `04_bayesian_intervals.ipynb` covers the hierarchical interval model
 specifically: prior predictive checks, convergence diagnostics (including
 a centered-vs-non-centered parameterisation comparison), a τ prior
 sensitivity check, and posterior predictive coverage against the pooled
 baseline, by hour of day.
+`05_xgboost_comparison.ipynb` is a nonlinear-vs-linear model comparison —
+see below.
 
 ## Agent experiment: Model Investigation Assistant
 
@@ -83,6 +86,54 @@ tool-selection and reasoning process looks — and a reminder that ambiguity
 can hide in something as small as a field name, not just in underlying logic.
 
 Full evaluation writeup: `MIA_Failure_Modes.md`, `MIA_Lessons_Learned.md`.
+
+## Learning exercise: does a nonlinear model actually improve the forecast?
+
+`notebooks/05_xgboost_comparison.ipynb` compares XGBoost against the
+existing linear lag + period-dummy regression, given identical input
+features, to see whether a nonlinear model earns its complexity here —
+and, if it does, traces *why*, and checks whether it actually matters
+downstream at the dispatch decision.
+
+**Methodology**: primary comparison on the same chronological split the
+linear model already uses, plus a 6-fold expanding-window walk-forward
+validation (calendar-month test blocks, July–December) so the result
+isn't one noisy split. Each fold's XGBoost fit uses early stopping
+against a validation slice carved from its own training window — never
+the test block. Per-window significance is checked with a
+Diebold-Mariano test (paired, autocorrelation-aware) rather than eyeballing
+MAE.
+
+**Findings**:
+- XGBoost beats the linear model on 5 of 6 folds (and the primary split)
+  by a statistically significant margin, concentrated at the morning and
+  evening demand ramps — exactly where the linear model's fixed,
+  time-invariant lag coefficients are structurally unable to represent
+  "recent momentum predicts differently depending on time of day."
+- **The entire mechanism is one identifiable interaction, not a general
+  need for a nonlinear model**: adding a single explicit `period × lag_1`
+  interaction term to the *linear* model matches or exceeds XGBoost's
+  accuracy, including at the peaks. That one term is doing essentially
+  all of the work XGBoost was doing.
+- The one fold where XGBoost underperforms (September) isn't an anomaly —
+  the size of XGBoost's advantage correlates strongly (r≈0.91 across the
+  6 folds) with how much that month's actual demand shape deviates from
+  the shape already implicit in that fold's training-period average.
+  Closer to "typical" → less for either nonlinearity or the interaction
+  term to correct.
+- **Downstream dispatch impact is real but small**: realized profit
+  (schedule built on the forecast, repriced against actual demand)
+  correlates with forecast accuracy (r≈0.78) but all models land within
+  ~1–3% of a perfect-foresight oracle. The battery's own capacity
+  constraints and the LP's dependence on daily price *ranking* rather
+  than exact magnitude bound how much a better forecast can change the
+  bottom line, independent of the point-forecast metrics.
+
+This is exploratory only — `05_xgboost_comparison.ipynb` isn't wired into
+`forecast.py`, the MIA registry, or `dispatch.py`; the interaction-term
+result above suggests the more valuable next step (if pursued) would be
+adding the identified interaction term to the existing linear model
+rather than deploying XGBoost as a new forecast function.
 
 ## Possible extensions
 
