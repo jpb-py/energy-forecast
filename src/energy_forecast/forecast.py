@@ -45,7 +45,7 @@ def _fit_mean_model(df: pd.DataFrame, split_date: pd.Timestamp):
 
 
 def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.DataFrame:
-    train_df, test_df, y_pred_train, y_fore = _fit_mean_model(df, split_date)
+    train_df, _test_df, y_pred_train, y_fore = _fit_mean_model(df, split_date)
 
     y_resid = train_df['ND'] - y_pred_train
     std_dev = np.std(y_resid)
@@ -61,13 +61,14 @@ def forecast_with_interval(df: pd.DataFrame, split_date: pd.Timestamp) -> pd.Dat
 def bayesian_hierarchical_forecast(
     df: pd.DataFrame,
     split_date: pd.Timestamp,
-    priors: HierarchicalSigmaPriors = HierarchicalSigmaPriors(),
+    priors: HierarchicalSigmaPriors | None = None,
     random_seed: int | None = None,
 ) -> pd.DataFrame:
     # Same point forecast as forecast_with_interval; only the interval differs. The mean model
     # is treated as a fixed plug-in here — residual diagnostics found no hour-of-day bias in the
     # mean, only in the spread, so only the spread is modelled hierarchically (see
     # notebooks/04_bayesian_intervals.ipynb).
+    priors = priors if priors is not None else HierarchicalSigmaPriors()
     train_df, test_df, y_pred_train, y_fore = _fit_mean_model(df, split_date)
 
     y_resid = train_df['ND'] - y_pred_train
