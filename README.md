@@ -13,7 +13,12 @@ and asset constraints.
    week, month, weekend flag) and lag features (1, 48, 336 periods)
    used by the forecast model.
 3. **`forecast.py`** — produces a demand forecast with 95% prediction
-   intervals using a lag + half-hourly period dummy regression.
+   intervals using a lag + half-hourly period dummy regression. The point
+   forecast is shared by two interval methods: a pooled `±1.96×std`
+   baseline, and `bayesian_hierarchical_forecast`, which fits a PyMC
+   model (`bayesian_interval.py`) that partially pools residual scale
+   across hour-of-day buckets, so interval width adapts to each hour's
+   actual volatility instead of using one fixed width all day.
 4. **`dispatch.py`** — solves a linear program for optimal asset
    dispatch (charge/discharge schedule) given the demand forecast,
    subject to state-of-charge and round-trip efficiency constraints.
@@ -26,9 +31,14 @@ uv run pytest
 ```
 
 Notebooks in `notebooks/` (`01_exploration.ipynb`, `02_forecasting.ipynb`,
-`03_optimisation.ipynb`) walk through the exploratory analysis and model
-development behind each module, and now import directly from `src/`
-rather than duplicating logic inline.
+`03_optimisation.ipynb`, `04_bayesian_intervals.ipynb`) walk through the
+exploratory analysis and model development behind each module, and import
+directly from `src/` rather than duplicating logic inline.
+`04_bayesian_intervals.ipynb` covers the hierarchical interval model
+specifically: prior predictive checks, convergence diagnostics (including
+a centered-vs-non-centered parameterisation comparison), a τ prior
+sensitivity check, and posterior predictive coverage against the pooled
+baseline, by hour of day.
 
 ## Agent experiment: Model Investigation Assistant
 
