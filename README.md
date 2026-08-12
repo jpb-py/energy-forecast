@@ -95,6 +95,37 @@ CVaR-based objective — so the dispatch decision explicitly accounts for
 forecast uncertainty rather than optimising against the mean forecast
 alone.
 
+**Bayesian vs. frequentist interval, and where the Bayesian model would
+actually earn its complexity**: on the current dataset, the hierarchical
+model's partial pooling barely shrinks any hour's estimate (<0.4%
+everywhere — each hour has ~574 training observations, already enough to
+pin down its own std without borrowing from other hours), and a plain
+frequentist per-hour interval (`μ ± 1.96 × σ̂_h`, `σ̂_h` = each hour's own
+unpooled residual std, no PyMC required) produces coverage
+indistinguishable from the Bayesian model, hour by hour. So today, the
+extra MCMC-fitting cost and convergence diagnostics it requires (R-hat,
+ESS, divergences) aren't buying anything the frequentist version doesn't
+already give.
+
+Where that changes is exactly the stochastic dispatch extension above.
+Scenario-based stochastic programming needs sampled demand *paths*, not a
+95% band — `pm.sample_posterior_predictive` already produces exactly that
+(thousands of draws per period), whereas a frequentist CI would need a
+sampling assumption bolted on after the fact to produce scenarios at all.
+More importantly, dispatch is sequential (`SoC[i]` depends on `SoC[i-1]`),
+so a risk-aware schedule needs *jointly plausible whole-day* demand paths,
+not 24 independent per-hour bands — a generative Bayesian model can be
+extended with a correlation structure across periods (e.g. an AR term on
+residuals) and still forward-sample coherent day-level scenarios, which a
+per-hour frequentist interval has no natural way to represent. And a
+CVaR/chance-constrained objective evaluates deep in the tail, where a
+frequentist plug-in `σ̂_h` (treated as exactly known) understates true
+uncertainty more than it does near the mean — the Bayesian posterior
+predictive integrates over uncertainty in `σ_h` itself, which matters
+most exactly there. None of this is realised yet: `dispatch.py` is still
+fully deterministic, so this is optionality the hierarchical model makes
+available, not value it is currently delivering.
+
 ## Testing
 
 `tests/` covers state-of-charge feasibility in the dispatch LP and data
