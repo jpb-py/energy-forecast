@@ -70,20 +70,11 @@ easier question instead of flagging an ambiguous one; a token-limit cutoff
 producing a silent blank response instead of a visible error — each traced
 to a specific cause and fixed.
 
-The most significant finding wasn't about the agent's reasoning at all: an
-early dispatch-comparison result looked plausible and internally consistent
-(a less accurate forecast appeared to produce a better dispatch outcome),
-with a coherent causal story attached. It turned out to be wrong for two
-compounding reasons — an ambiguously-named return field (`total_cost`, which
-was actually profit, later renamed to `total_profit`/`realized_profit`) that
-led the agent to read even its own correct-at-the-time numbers backwards,
-and a genuine scoring bug where cost/profit was computed against the same
-forecast used to build the schedule rather than against actual demand.
-Independently re-deriving the result after fixing both reversed the
-conclusion. It's a concrete example of why agent outputs need verification,
-not just plausibility review, regardless of how sound the agent's own
-tool-selection and reasoning process looks — and a reminder that ambiguity
-can hide in something as small as a field name, not just in underlying logic.
+The most signifcant finding was where a less accurate forecast appeared to produce
+a better dispatch outcome with the agent attaching a coherent causal story.  After
+manual investigation this turned out to be wrong for two reasons - confusion around 
+a 'total_cost' variable that was in fact total profit and a scoring bug where the
+scoring was done against forecasted rather than realised price projections. 
 
 Full evaluation writeup: `MIA_Failure_Modes.md`, `MIA_Lessons_Learned.md`.
 
@@ -135,6 +126,41 @@ result above suggests the more valuable next step (if pursued) would be
 adding the identified interaction term to the existing linear model
 rather than deploying XGBoost as a new forecast function.
 
+## Known limitations
+
+
+- **The price signal is a toy proxy, not a real market price.** Dispatch
+  and MIA both use `price = k × demand`, a constant scalar multiple of
+  demand. 
+
+- **Single year of data (2024 only).** Every result — the forecast, the
+  interval coverage, the walk-forward folds — is validated within one
+  calendar year. There's no evidence any of it holds up across a
+  different weather year or against a multi-year demand growth trend;
+  the walk-forward CV tests within-year robustness, not across-year.
+
+- **MIA's evaluation is hand-built and small.** Ten manually written
+  questions, run and graded by hand not systematic coverage.
+  A production agent would need a much larger, ideally auto-graded eval
+  set to catch regressions as the system changes.
+
+- **Dispatch ignores battery degradation and cross-day strategy.** Each
+  day is optimised independently with fixed start/end state of charge
+  and no cycling cost, so the LP can't represent trade-offs a real
+  operator would weigh — e.g. holding charge across a day boundary, or
+  reduced cycling to preserve battery life.
+
+- **Bayesian vs. frequentist interval**: on the current dataset, the hierarchical
+model's partial pooling barely shrinks any hour's estimate (<0.4%
+everywhere — each hour has ~574 training observations, already enough to
+pin down its own std without borrowing from other hours), and a plain
+frequentist per-hour interval (`μ ± 1.96 × σ̂_h`, `σ̂_h` = each hour's own
+unpooled residual std, no PyMC required) produces coverage
+indistinguishable from the Bayesian model, hour by hour. So the
+extra MCMC-fitting cost and convergence diagnostics it requires (R-hat,
+ESS, divergences) aren't buying anything the frequentist version doesn't
+already give.
+
 ## Possible extensions
 
 The current dispatch model treats the demand forecast as a single point
@@ -146,36 +172,13 @@ CVaR-based objective — so the dispatch decision explicitly accounts for
 forecast uncertainty rather than optimising against the mean forecast
 alone.
 
-**Bayesian vs. frequentist interval, and where the Bayesian model would
-actually earn its complexity**: on the current dataset, the hierarchical
-model's partial pooling barely shrinks any hour's estimate (<0.4%
-everywhere — each hour has ~574 training observations, already enough to
-pin down its own std without borrowing from other hours), and a plain
-frequentist per-hour interval (`μ ± 1.96 × σ̂_h`, `σ̂_h` = each hour's own
-unpooled residual std, no PyMC required) produces coverage
-indistinguishable from the Bayesian model, hour by hour. So today, the
-extra MCMC-fitting cost and convergence diagnostics it requires (R-hat,
-ESS, divergences) aren't buying anything the frequentist version doesn't
-already give.
-
-Where that changes is exactly the stochastic dispatch extension above.
-Scenario-based stochastic programming needs sampled demand *paths*, not a
-95% band — `pm.sample_posterior_predictive` already produces exactly that
-(thousands of draws per period), whereas a frequentist CI would need a
-sampling assumption bolted on after the fact to produce scenarios at all.
-More importantly, dispatch is sequential (`SoC[i]` depends on `SoC[i-1]`),
-so a risk-aware schedule needs *jointly plausible whole-day* demand paths,
-not 24 independent per-hour bands — a generative Bayesian model can be
-extended with a correlation structure across periods (e.g. an AR term on
-residuals) and still forward-sample coherent day-level scenarios, which a
-per-hour frequentist interval has no natural way to represent. And a
-CVaR/chance-constrained objective evaluates deep in the tail, where a
-frequentist plug-in `σ̂_h` (treated as exactly known) understates true
-uncertainty more than it does near the mean — the Bayesian posterior
-predictive integrates over uncertainty in `σ_h` itself, which matters
-most exactly there. None of this is realised yet: `dispatch.py` is still
-fully deterministic, so this is optionality the hierarchical model makes
-available, not value it is currently delivering.
+Scenario-based stochastic programming needs sampled demand *paths*
+(dispatch is sequential — `SoC[i]` depends on `SoC[i-1]`), not a 95%
+band. `pm.sample_posterior_predictive` already produces path samples
+as a byproduct of the current model; a frequentist AR/VAR fit on the
+residuals could produce them too, with a correlation structure that
+isn't built yet. Either way, `dispatch.py` is still fully
+deterministic, so this is optionality, not value currently delivered.
 
 ## Testing
 
