@@ -76,8 +76,6 @@ manual investigation this turned out to be wrong for two reasons - confusion aro
 a 'total_cost' variable that was in fact total profit and a scoring bug where the
 scoring was done against forecasted rather than realised price projections. 
 
-Full evaluation writeup: `MIA_Failure_Modes.md`, `MIA_Lessons_Learned.md`.
-
 ## Learning exercise: does a nonlinear model actually improve the forecast?
 
 `notebooks/05_xgboost_comparison.ipynb` compares XGBoost against the
