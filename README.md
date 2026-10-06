@@ -103,6 +103,11 @@ easier question instead of flagging an ambiguous one; a token-limit cutoff
 producing a silent blank response instead of a visible error — each traced
 to a specific cause and fixed.
 
+The ten evaluation questions are recorded in
+src/energy_forecast/mia/evals/MIA_EVALUATION_Questions.md.
+These are manual evaluations of model behaviour, separate from the
+automated pytest tests.
+
 The most signifcant finding was where a less accurate forecast appeared to produce
 a better dispatch outcome with the agent attaching a coherent causal story.  After
 manual investigation this turned out to be wrong for two reasons - confusion around 
