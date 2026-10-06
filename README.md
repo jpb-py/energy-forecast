@@ -23,12 +23,45 @@ and asset constraints.
    dispatch (charge/discharge schedule) given the demand forecast,
    subject to state-of-charge and round-trip efficiency constraints.
 
-## Running the pipeline
+## How to run
+
+Run these commands from the repository root. Python 3.14+ is required;
+`uv sync` installs the project and its dependencies. The examples expect
+`data/demanddata_2024.csv` (included in this checkout). Dispatch uses the
+HiGHS solver; its Python package, `highspy`, must be available in the
+project environment (it is not explicitly declared in `pyproject.toml`).
 
 ```bash
 uv sync
-uv run pytest
+uv run python scratch.py
 ```
+
+`scratch.py` is the runnable core pipeline example: it loads demand data,
+builds features, forecasts from 1 November 2024, and solves one day's
+battery dispatch, followed by a synthetic-price example. It prints interval
+statistics and sample charge/discharge rates; it does not save results.
+To explore line by line, open `scratch.py` in your debugger using the
+project environment, set a breakpoint at `load_demand_data(...)`, and step
+into the data, feature, forecast, and dispatch functions. Its `# %%` markers
+also allow running individual cells in an editor that supports them.
+
+Other entry points:
+
+```bash
+# Compare forecast and realised dispatch profit for two models over two weeks
+uv run python scripts/manual_check_q7.py
+
+# Open the exploratory notebooks
+uv run jupyter lab
+
+# Ask the Model Investigation Assistant a diagnostic question
+uv run python -m energy_forecast.mia.cli "Compare linear_lagged and seasonal_naive performance in November 2024"
+```
+
+The MIA command requires `ANTHROPIC_API_KEY` in the environment and makes
+Anthropic API calls. There is no top-level application command or console
+script defined in `pyproject.toml`; the core modules are used by the scripts
+and notebooks above. `uv run pytest` runs the tests, not the pipeline.
 
 Notebooks in `notebooks/` (`01_exploration.ipynb`, `02_forecasting.ipynb`,
 `03_optimisation.ipynb`, `04_bayesian_intervals.ipynb`,
